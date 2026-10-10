@@ -414,20 +414,45 @@ function infoRow(label, value, cls = "") {
   return `<div class="info-row"><div class="k">${label}</div><div class="v ${cls}">${v}</div></div>`;
 }
 
+function popularityHtml(p) {
+  const who = p.sex === "f" ? "girls" : "boys";
+  const max = Math.max(...p.countries.map((c) => c.per10k), 1);
+  const rows = p.countries.map((c) => `
+    <div class="pop-row">
+      <span class="pop-flag">${FLAGS[c.cc] || c.cc}</span>
+      <span class="pop-country">${esc(c.country)}</span>
+      <span class="pop-rank">#${c.rank}</span>
+      <span class="pop-bar"><i style="width:${Math.max(3, (100 * c.per10k) / max)}%"></i></span>
+      <span class="pop-share" title="${c.count} births in the data">${c.per10k >= 10 ? Math.round(c.per10k) : c.per10k}</span>
+    </div>`).join("");
+  const missing = p.missing.map((m) => `${FLAGS[m.cc] || m.cc} ${esc(m.country)}${m.top_only ? ` (not in top ${m.top_only})` : ""}`);
+  return `<div class="info-row"><div class="k">Where it's popular</div>
+      <div class="pop-table">${rows || '<p class="muted small">No data</p>'}</div>
+      <div class="muted small">Rank, and ${who} per 10,000 births with this name.${missing.length ? ` Not found in: ${missing.join(", ")}.` : ""}</div></div>`;
+}
+
 async function showInfo(n) {
   if (!n) return;
   $("#info-name").textContent = n.name;
   $("#info-foot").textContent = "";
   $("#info-overlay").classList.remove("hidden");
+  const stillOpen = () => $("#info-name").textContent === n.name;  // closed or switched meanwhile
+  $("#info-body").innerHTML = `<div id="info-pop"></div><div id="info-ai"></div>`;
+
+  // Popularity comes from our own statistics: instant, no AI call
+  api(`/api/popularity/${n.id}`)
+    .then((p) => { if (stillOpen()) $("#info-pop").innerHTML = popularityHtml(p); })
+    .catch(() => {});
+
   if (!infoCache[n.id]) {
-    $("#info-body").innerHTML = `<div class="spinner"></div><p class="muted center small">Looking up ${esc(n.name)}…</p>`;
+    $("#info-ai").innerHTML = `<div class="spinner"></div><p class="muted center small">Looking up origin and meaning…</p>`;
   }
   try {
     const data = infoCache[n.id] || await api(`/api/info/${n.id}`);
     infoCache[n.id] = data;
-    if ($("#info-name").textContent !== n.name) return;  // closed or switched meanwhile
+    if (!stillOpen()) return;
     const i = data.info;
-    $("#info-body").innerHTML =
+    $("#info-ai").innerHTML =
       infoRow("Meaning", i.meaning, "info-meaning") +
       infoRow("Origin", i.origin) +
       infoRow("Pronunciation", i.pronunciation) +
@@ -438,7 +463,7 @@ async function showInfo(n) {
     const src = i.sources && i.sources.length ? `Sources: ${i.sources.join(", ")}` : (i.searched ? "" : "No web search used");
     $("#info-foot").textContent = conf + src;
   } catch (err) {
-    $("#info-body").innerHTML = `<p class="error">${esc(err.message)}</p>`;
+    if (stillOpen()) $("#info-ai").innerHTML = `<p class="error">${esc(err.message)}</p>`;
   }
 }
 

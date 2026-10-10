@@ -199,11 +199,15 @@ def main():
                 "sex": sex,
                 "countries": {cc: {"rank": s["rank"], "per10k": round(s["share"] * 1e4, 2)}
                               for cc, s in stats.items() if s["rank"] <= TAG_RANK or cc == picked_by},
+                # every country where the name appears at all, for the info page
+                "ranks": {cc: {"rank": s["rank"], "count": s["count"], "per10k": round(s["share"] * 1e4, 2)}
+                          for cc, s in stats.items()},
             })
         print(f"sex {sex}: {len(chosen)} names, depth {depth}", file=sys.stderr)
 
     out.sort(key=lambda n: (n["sex"], min(c["rank"] for c in n["countries"].values())))
-    OUT.write_text(json.dumps({"countries": COUNTRIES, "names": out}, ensure_ascii=False, separators=(",", ":")))
+    meta = {"top_only": {cc: 100 for cc in ("UK", "ES")}}  # sources that publish only a top 100
+    OUT.write_text(json.dumps({"countries": COUNTRIES, "meta": meta, "names": out}, ensure_ascii=False, separators=(",", ":")))
     print(f"wrote {OUT} ({len(out)} names, {OUT.stat().st_size // 1024} KB)", file=sys.stderr)
 
 

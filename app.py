@@ -37,7 +37,8 @@ CREATE TABLE IF NOT EXISTS names (
     id INTEGER PRIMARY KEY,
     name TEXT NOT NULL,
     sex TEXT NOT NULL,
-    countries TEXT NOT NULL,          -- JSON {cc: {rank, per10k}}
+    countries TEXT NOT NULL,          -- JSON {cc: {rank, per10k}}, countries the name is tagged with
+    ranks TEXT NOT NULL DEFAULT '{}', -- JSON {cc: {rank, count, per10k}}, every country it appears in
     UNIQUE (name, sex)
 );
 CREATE TABLE IF NOT EXISTS swipes (
@@ -85,26 +86,29 @@ def init_db():
     with db() as conn:
         conn.execute("PRAGMA journal_mode=WAL")
         conn.executescript(SCHEMA)
+        if "ranks" not in {r["name"] for r in conn.execute("PRAGMA table_info(names)")}:
+            conn.execute("ALTER TABLE names ADD COLUMN ranks TEXT NOT NULL DEFAULT '{}'")
         data = json.loads(NAMES_JSON.read_text())
         conn.executemany(
-            "INSERT INTO names (name, sex, countries) VALUES (?, ?, ?) "
-            "ON CONFLICT (name, sex) DO UPDATE SET countries = excluded.countries",
-            [(n["name"], n["sex"], json.dumps(n["countries"])) for n in data["names"]],
+            "INSERT INTO names (name, sex, countries, ranks) VALUES (?, ?, ?, ?) "
+            "ON CONFLICT (name, sex) DO UPDATE SET countries = excluded.countries, ranks = excluded.ranks",
+            [(n["name"], n["sex"], json.dumps(n["countries"]), json.dumps(n.get("ranks", {}))) for n in data["names"]],
         )
-    return data["countries"]
+    return data["countries"], data.get("meta", {}).get("top_only", {})
 
 
-COUNTRIES = init_db()
+COUNTRIES, TOP_ONLY = init_db()
 
 
 def load_names():
     with db() as conn:
-        rows = conn.execute("SELECT id, name, sex, countries FROM names").fetchall()
-    return {r["id"]: {"id": r["id"], "name": r["name"], "sex": r["sex"],
-                      "countries": json.loads(r["countries"])} for r in rows}
+        rows = conn.execute("SELECT id, name, sex, countries, ranks FROM names").fetchall()
+    names = {r["id"]: {"id": r["id"], "name": r["name"], "sex": r["sex"],
+                       "countries": json.loads(r["countries"])} for r in rows}
+    return names, {r["id"]: json.loads(r["ranks"]) for r in rows}
 
 
-NAMES = load_names()
+NAMES, RANKS = load_names()  # RANKS kept apart so deck cards stay small
 
 app = FastAPI(title="Name Match")
 
@@ -374,6 +378,21 @@ def duel_result(body: DuelResult, user: str | None = Cookie(None)):
         conn.execute("INSERT INTO duels (user_id, winner_id, loser_id, ts) VALUES (?, ?, ?, ?)",
                      (u["id"], body.winner_id, body.loser_id, time.time()))
     return {"delta": round(delta, 1)}
+
+
+@app.get("/api/popularity/{name_id}")
+def popularity(name_id: int, user: str | None = Cookie(None)):
+    """Rank and share in every country of the dataset, most popular first."""
+    if name_id not in NAMES:
+        raise HTTPException(404, "unknown name")
+    with db() as conn:
+        current_user(conn, user)
+    ranks = RANKS[name_id]
+    rows = [{"cc": cc, "country": label, **ranks[cc]} for cc, label in COUNTRIES.items() if cc in ranks]
+    rows.sort(key=lambda r: -r["per10k"])
+    missing = [{"cc": cc, "country": label, "top_only": TOP_ONLY.get(cc)}
+               for cc, label in COUNTRIES.items() if cc not in ranks]
+    return {"sex": NAMES[name_id]["sex"], "countries": rows, "missing": missing}
 
 
 # ---------- name info (Gemini, fetched only on request, cached forever) ----------
