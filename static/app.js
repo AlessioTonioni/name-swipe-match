@@ -71,6 +71,25 @@ $("#logout").addEventListener("click", async (e) => {
   showLogin();
 });
 
+$("#reset-me").addEventListener("click", async (e) => {
+  e.preventDefault();
+  const m = await api("/api/me");
+  $("#reset-user").textContent = m.username;
+  $("#reset-counts").textContent = `${m.swiped} swipes (${m.liked} likes)`;
+  $("#reset-overlay").classList.remove("hidden");
+});
+$("#reset-cancel").addEventListener("click", () => $("#reset-overlay").classList.add("hidden"));
+$("#reset-overlay").addEventListener("click", (e) => { if (e.target.id === "reset-overlay") $("#reset-overlay").classList.add("hidden"); });
+$("#reset-confirm").addEventListener("click", async () => {
+  try {
+    const res = await api("/api/reset-me", { method: "POST" });
+    $("#reset-overlay").classList.add("hidden");
+    showTab("swipe");
+    await start();
+    toast(`Reset: ${res.swipes} swipes and ${res.duels} duels deleted`);
+  } catch (err) { toast(err.message); }
+});
+
 async function start() {
   me = await api("/api/me");
   meta = meta || await api("/api/meta");

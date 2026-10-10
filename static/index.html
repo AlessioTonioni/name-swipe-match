@@ -27,7 +27,7 @@
   <section id="app" class="screen hidden">
     <header>
       <span class="brand">👶 Name Match</span>
-      <span class="who"><span id="me-name"></span> · <a href="#" id="logout">switch</a></span>
+      <span class="who"><span id="me-name"></span> · <a href="#" id="logout">switch</a> · <a href="#" id="reset-me">reset</a></span>
     </header>
 
     <main>
@@ -123,6 +123,20 @@
       <p>Both you and <b id="match-who"></b> like the name</p>
       <div id="match-name" class="match-name"></div>
       <button id="match-close" class="primary">Keep swiping</button>
+    </div>
+  </div>
+
+  <!-- Reset confirmation -->
+  <div id="reset-overlay" class="sheet hidden">
+    <div class="sheet-body">
+      <h2>Reset your data?</h2>
+      <p>This deletes <b id="reset-counts"></b> for <b id="reset-user"></b>: every name you swiped,
+        your likes, matches and Elo scores. Your partner's data is not touched.</p>
+      <p class="muted small">This cannot be undone.</p>
+      <div class="sheet-actions">
+        <button id="reset-cancel" class="chip">Cancel</button>
+        <button id="reset-confirm" class="primary danger">Delete my data</button>
+      </div>
     </div>
   </div>
 

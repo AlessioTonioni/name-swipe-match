@@ -252,6 +252,18 @@ def reset_passed(user: str | None = Cookie(None)):
     return {"restored": n}
 
 
+@app.post("/api/reset-me")
+def reset_me(user: str | None = Cookie(None)):
+    """Delete all of your swipes, Elo scores and duels. Other users' data is untouched."""
+    with db() as conn:
+        u = current_user(conn, user)
+        swipes = conn.execute("DELETE FROM swipes WHERE user_id = ?", (u["id"],)).rowcount
+        conn.execute("DELETE FROM ratings WHERE user_id = ?", (u["id"],))
+        duels = conn.execute("DELETE FROM duels WHERE user_id = ?", (u["id"],)).rowcount
+        conn.execute("UPDATE users SET matches_seen_at = 0 WHERE id = ?", (u["id"],))
+    return {"swipes": swipes, "duels": duels}
+
+
 # ---------- likes, matches, rankings ----------
 
 def liked_rows(conn, user_id):

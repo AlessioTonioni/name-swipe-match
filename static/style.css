@@ -186,3 +186,4 @@ nav.tabs button.active span { filter: none; opacity: 1; }
   position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%); background: var(--text);
   color: var(--bg); padding: 10px 16px; border-radius: 12px; font-size: 14px; z-index: 30;
 }
+.primary.danger { background: #d93a3a; }
