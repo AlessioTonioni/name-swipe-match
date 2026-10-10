@@ -380,12 +380,13 @@ def duel_result(body: DuelResult, user: str | None = Cookie(None)):
 
 INFO_PROMPT = """You are an expert in the etymology of first names, helping expecting parents.
 Describe the {sex} first name "{name}", as used in: {countries}.
-Use web search to check the origin and meaning. If sources disagree, or the name is a modern
-coinage with no established meaning, say so. Never invent a meaning.
+Always run a web search first and base the answer on what you find. If sources disagree, or the
+name is a modern coinage with no established meaning, say so. Never invent a meaning.
+Keep every field short; this is shown on a phone.
 Reply with ONLY a JSON object, no markdown fences, with these keys:
 {{"origin": "language/culture of origin and the path it took, e.g. 'Hebrew, via Greek and Latin Matthaeus'",
  "meaning": "literal meaning, e.g. 'gift of God'",
- "pronunciation": "simple pronunciation guide, noting differences between the listed countries",
+ "pronunciation": "simple English-style respelling with the stressed syllable in capitals, max 12 words, e.g. 'mat-TEH-oh'",
  "variants": ["forms of the name in other languages"],
  "namesakes": ["up to 3 well-known people with this first name"],
  "note": "one or two sentences of interesting context (history, saints, popularity trend)",
