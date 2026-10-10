@@ -7,6 +7,7 @@ import re
 import sqlite3
 import threading
 import time
+import unicodedata
 import urllib.error
 import urllib.request
 from contextlib import contextmanager
@@ -109,6 +110,18 @@ def load_names():
 
 
 NAMES, RANKS = load_names()  # RANKS kept apart so deck cards stay small
+
+
+LETTERS = str.maketrans({"ø": "o", "æ": "ae", "œ": "oe", "ß": "ss", "ł": "l", "đ": "d", "ı": "i"})
+
+
+def search_key(text):
+    """Lowercase, accents stripped: 'Léo' and 'leo' both become 'leo'."""
+    s = unicodedata.normalize("NFKD", text.strip().lower().translate(LETTERS))
+    return "".join(ch for ch in s if not unicodedata.combining(ch))
+
+
+SEARCH_KEYS = {i: search_key(n["name"]) for i, n in NAMES.items()}
 
 app = FastAPI(title="Name Match")
 
@@ -222,6 +235,23 @@ def deck(sex: str = "m", countries: str = "", min_len: int = 1, max_len: int = 9
     # Weighted shuffle: popular names tend to come first, but the order is not strictly sorted
     keyed = sorted(pool, key=lambda n: -random.random() ** (best_rank(n, ccs) ** 0.75))
     return {"remaining": len(pool), "cards": [card(n, ccs) for n in keyed[:limit]]}
+
+
+@app.get("/api/search")
+def search(q: str, limit: int = 20, user: str | None = Cookie(None)):
+    """Find names regardless of filters: prefix matches first, then names containing the text."""
+    key = search_key(q)
+    if not key:
+        return {"results": []}
+    with db() as conn:
+        u = current_user(conn, user)
+        status = {r["name_id"]: ("liked" if r["liked"] else "passed")
+                  for r in conn.execute("SELECT name_id, liked FROM swipes WHERE user_id = ?", (u["id"],))}
+    hits = [(0 if k.startswith(key) else 1, len(k), NAMES[i]["name"], i)
+            for i, k in SEARCH_KEYS.items() if key in k]
+    hits.sort()
+    return {"results": [{**card(NAMES[i]), "status": status.get(i)} for *_, i in hits[:limit]],
+            "total": len(hits)}
 
 
 class Swipe(BaseModel):

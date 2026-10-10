@@ -149,6 +149,7 @@ function cardEl(n) {
   el.innerHTML = `
     <div class="stamp like">LIKE</div><div class="stamp nope">NOPE</div>
     <button class="info-btn" title="Origin and meaning (i)">i</button>
+    ${n.lookedUp ? `<span class="looked-up status ${n.status || ""}">🔍 ${n.status === "liked" ? "you liked it" : n.status === "passed" ? "you passed on it" : "looked up"}</span>` : ""}
     <div class="sex ${n.sex}">${sexLabel(n.sex)}</div>
     <div class="name">${esc(n.name)}</div>
     <div class="pop muted">${popLabel(n.best_rank)}</div>
@@ -224,6 +225,8 @@ document.addEventListener("keydown", (e) => {
   if ($("#tab-swipe").classList.contains("hidden") || !$("#filters").classList.contains("hidden")) return;
   if (!$("#match-overlay").classList.contains("hidden") || e.target.tagName === "INPUT") return;
   if (!$("#info-overlay").classList.contains("hidden") || !$("#reset-overlay").classList.contains("hidden")) return;
+  if (!$("#search-overlay").classList.contains("hidden")) return;
+  if (e.key === "/") { e.preventDefault(); openSearch(); return; }
   if (e.key === "i" && queue.length) showInfo(queue[0]);
   if (e.key === "ArrowRight") decide(true);
   if (e.key === "ArrowLeft") decide(false);
@@ -403,6 +406,61 @@ async function loadMatches() {
       <span class="nm tappable" data-info="${m.id}">${esc(m.name)}<small>You and ${esc(m.with)} both like it · ${new Date(m.ts * 1000).toLocaleDateString()}</small></span>
       <span class="flags">${flagsHtml(m.countries, null, 2)}</span></li>`).join("")
     : `<div class="list-empty">No matches yet. Keep swiping!</div>`;
+}
+
+// ---------- look up a name ----------
+let searchTimer = null;
+let searchSeq = 0;
+let searchResults = [];
+
+function openSearch() {
+  $("#search-overlay").classList.remove("hidden");
+  $("#search-input").value = "";
+  $("#search-results").innerHTML = "";
+  $("#search-input").focus();
+}
+function closeSearch() { $("#search-overlay").classList.add("hidden"); $("#search-input").blur(); }
+
+$("#search-btn").addEventListener("click", openSearch);
+$("#search-close").addEventListener("click", closeSearch);
+$("#search-overlay").addEventListener("click", (e) => { if (e.target.id === "search-overlay") closeSearch(); });
+$("#search-input").addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closeSearch();
+  if (e.key === "Enter" && searchResults.length) pickSearchResult(searchResults[0]);
+});
+$("#search-input").addEventListener("input", () => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(runSearch, 150);
+});
+
+async function runSearch() {
+  const q = $("#search-input").value.trim();
+  const seq = ++searchSeq;
+  if (!q) { searchResults = []; $("#search-results").innerHTML = ""; return; }
+  const data = await api(`/api/search?q=${encodeURIComponent(q)}`);
+  if (seq !== searchSeq) return;  // a newer query already ran
+  searchResults = data.results;
+  $("#search-results").innerHTML = data.results.length ? data.results.map((n, i) => `
+    <li data-pick="${i}">
+      <span class="nm">${esc(n.name)}<small>${sexLabel(n.sex)} · ${popLabel(n.best_rank)}</small></span>
+      ${n.status ? `<span class="status ${n.status}">${n.status === "liked" ? "♥ liked" : "passed"}</span>` : ""}
+    </li>`).join("")
+    : `<div class="list-empty">“${esc(q)}” is not in our ${me.total_names.toLocaleString()} names.</div>`;
+  $("#search-foot").textContent = data.total > data.results.length
+    ? `Showing ${data.results.length} of ${data.total} matches.` : "Any name in the list, whatever your filters.";
+}
+
+$("#search-results").addEventListener("click", (e) => {
+  const i = e.target.closest("[data-pick]")?.dataset.pick;
+  if (i !== undefined) pickSearchResult(searchResults[+i]);
+});
+
+function pickSearchResult(n) {
+  closeSearch();
+  showTab("swipe");
+  queue = queue.filter((q) => q.id !== n.id);
+  queue.unshift({ ...n, lookedUp: true });
+  renderDeck();
 }
 
 // ---------- name info (fetched only when asked) ----------

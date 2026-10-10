@@ -34,7 +34,10 @@
       <!-- Swipe -->
       <div id="tab-swipe" class="tab">
         <div class="toolbar">
-          <button id="filters-btn" class="chip">⚙︎ Filters <span id="filters-summary" class="muted"></span></button>
+          <span class="toolbar-left">
+            <button id="filters-btn" class="chip">⚙︎ Filters <span id="filters-summary" class="muted"></span></button>
+            <button id="search-btn" class="chip" title="Look up a name (/)">🔍</button>
+          </span>
           <span id="remaining" class="muted small"></span>
         </div>
         <div id="deck" class="deck"></div>
@@ -123,6 +126,19 @@
       <p>Both you and <b id="match-who"></b> like the name</p>
       <div id="match-name" class="match-name"></div>
       <button id="match-close" class="primary">Keep swiping</button>
+    </div>
+  </div>
+
+  <!-- Search -->
+  <div id="search-overlay" class="sheet top hidden">
+    <div class="sheet-body">
+      <input id="search-input" class="search-input" type="search" placeholder="Look up a name…"
+             autocomplete="off" autocapitalize="words" spellcheck="false">
+      <ul id="search-results" class="list search-results"></ul>
+      <div class="sheet-actions">
+        <span class="muted small" id="search-foot">Any name in the list, whatever your filters.</span>
+        <button id="search-close" class="chip">Close</button>
+      </div>
     </div>
   </div>
 

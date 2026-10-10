@@ -207,3 +207,15 @@ nav.tabs button.active span { filter: none; opacity: 1; }
 .pop-rank, .pop-share { font-variant-numeric: tabular-nums; color: var(--muted); text-align: right; }
 .pop-bar { height: 8px; background: var(--line); border-radius: 4px; overflow: hidden; }
 .pop-bar i { display: block; height: 100%; background: var(--accent); border-radius: 4px; }
+.toolbar-left { display: flex; gap: 6px; min-width: 0; }
+.sheet.top { align-items: flex-start; }
+.sheet.top .sheet-body { border-radius: 0 0 22px 22px; padding-top: max(18px, env(safe-area-inset-top)); }
+.search-input {
+  width: 100%; font-size: 18px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line);
+  background: var(--surface); color: var(--text);
+}
+.search-results { margin-top: 10px; max-height: 55dvh; overflow-y: auto; }
+.search-results li { cursor: pointer; }
+.status { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--bg); color: var(--muted); }
+.status.liked { background: var(--accent-soft); color: var(--accent); }
+.card .looked-up { position: absolute; top: 18px; left: 18px; font-size: 12px; }
