@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#fff7f2">
+  <title>Name Match</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👶</text></svg>">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <!-- Login -->
+  <section id="login" class="screen hidden">
+    <div class="login-box">
+      <div class="logo">👶</div>
+      <h1>Name Match</h1>
+      <p class="muted">Swipe on names. Find the ones you both love.</p>
+      <form id="login-form">
+        <input id="username" autocomplete="username" autocapitalize="none" placeholder="Your username" maxlength="32" required>
+        <button class="primary" type="submit">Start swiping</button>
+        <p id="login-error" class="error"></p>
+      </form>
+    </div>
+  </section>
+
+  <!-- App -->
+  <section id="app" class="screen hidden">
+    <header>
+      <span class="brand">👶 Name Match</span>
+      <span class="who"><span id="me-name"></span> · <a href="#" id="logout">switch</a></span>
+    </header>
+
+    <main>
+      <!-- Swipe -->
+      <div id="tab-swipe" class="tab">
+        <div class="toolbar">
+          <button id="filters-btn" class="chip">⚙︎ Filters <span id="filters-summary" class="muted"></span></button>
+          <span id="remaining" class="muted small"></span>
+        </div>
+        <div id="deck" class="deck"></div>
+        <div id="deck-empty" class="empty hidden">
+          <p>No more names match these filters.</p>
+          <button id="open-filters-empty" class="chip">Change filters</button>
+          <button id="reset-passed" class="chip">Show names I passed on again</button>
+        </div>
+        <div class="actions">
+          <button id="undo-btn" class="round small-round" title="Undo (Backspace)">↶</button>
+          <button id="nope-btn" class="round nope" title="Pass (←)">✕</button>
+          <button id="like-btn" class="round like" title="Like (→)">♥</button>
+        </div>
+      </div>
+
+      <!-- Duel -->
+      <div id="tab-duel" class="tab hidden">
+        <p class="muted center">Which do you prefer?</p>
+        <div id="duel" class="duel"></div>
+        <p id="duel-info" class="muted center small"></p>
+      </div>
+
+      <!-- Ranking -->
+      <div id="tab-ranking" class="tab hidden">
+        <div class="seg">
+          <button data-rank="mine" class="seg-btn active">My ranking</button>
+          <button data-rank="joint" class="seg-btn">Our ranking</button>
+        </div>
+        <ol id="ranking" class="list"></ol>
+      </div>
+
+      <!-- Matches -->
+      <div id="tab-matches" class="tab hidden">
+        <ul id="matches" class="list"></ul>
+      </div>
+    </main>
+
+    <nav class="tabs">
+      <button data-tab="swipe" class="active"><span>🃏</span>Swipe</button>
+      <button data-tab="duel"><span>⚔️</span>1 vs 1</button>
+      <button data-tab="ranking"><span>🏆</span>Ranking</button>
+      <button data-tab="matches"><span>💞</span>Matches<i id="match-badge" class="badge hidden"></i></button>
+    </nav>
+  </section>
+
+  <!-- Filters sheet -->
+  <div id="filters" class="sheet hidden">
+    <div class="sheet-body">
+      <h2>Filters</h2>
+      <label class="field-label">Gender</label>
+      <div class="seg" id="f-sex">
+        <button data-v="m" class="seg-btn">Boys</button>
+        <button data-v="f" class="seg-btn">Girls</button>
+        <button data-v="" class="seg-btn">Both</button>
+      </div>
+
+      <label class="field-label">Nationality <span class="muted small">(none selected = all)</span></label>
+      <div class="chips" id="f-countries"></div>
+
+      <label class="field-label">Length: <span id="f-len-label"></span> letters</label>
+      <div class="range-row">
+        <input type="range" id="f-min-len" min="2" max="14">
+        <input type="range" id="f-max-len" min="2" max="14">
+      </div>
+
+      <label class="field-label">Popularity <span class="muted small">(best rank in the selected countries)</span></label>
+      <div class="seg wrap" id="f-pop">
+        <button data-v="any" class="seg-btn">Any</button>
+        <button data-v="top100" class="seg-btn">Top 100</button>
+        <button data-v="top500" class="seg-btn">101–500</button>
+        <button data-v="rare" class="seg-btn">Rarer</button>
+      </div>
+
+      <div class="sheet-actions">
+        <button id="filters-reset" class="chip">Reset</button>
+        <button id="filters-apply" class="primary">Show names</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Match overlay -->
+  <div id="match-overlay" class="overlay hidden">
+    <div class="match-box">
+      <div class="hearts">💞</div>
+      <h2>It's a match!</h2>
+      <p>Both you and <b id="match-who"></b> like the name</p>
+      <div id="match-name" class="match-name"></div>
+      <button id="match-close" class="primary">Keep swiping</button>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+  <script src="/static/app.js"></script>
+</body>
+</html>
