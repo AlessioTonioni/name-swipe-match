@@ -1,10 +1,14 @@
 """Name Match: swipe on baby names, match with your partner, rank favourites by Elo."""
+import collections
 import json
 import os
 import random
 import re
 import sqlite3
+import threading
 import time
+import urllib.error
+import urllib.request
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -19,6 +23,8 @@ NAMES_JSON = ROOT / "data" / "names.json"
 ELO_START = 1500.0
 ELO_K = 32.0
 USERNAME = re.compile(r"^[a-z0-9_.-]{1,32}$")
+GEMINI_KEY = os.environ.get("GEMINI_API_KEY")
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.5-flash-lite")
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS users (
@@ -47,6 +53,12 @@ CREATE TABLE IF NOT EXISTS ratings (
     elo REAL NOT NULL,
     games INTEGER NOT NULL,
     PRIMARY KEY (user_id, name_id)
+);
+CREATE TABLE IF NOT EXISTS name_info (
+    name_id INTEGER PRIMARY KEY REFERENCES names(id),
+    info TEXT NOT NULL,               -- JSON from Gemini + sources
+    model TEXT NOT NULL,
+    created_at REAL NOT NULL
 );
 CREATE TABLE IF NOT EXISTS duels (
     id INTEGER PRIMARY KEY,
@@ -362,6 +374,83 @@ def duel_result(body: DuelResult, user: str | None = Cookie(None)):
         conn.execute("INSERT INTO duels (user_id, winner_id, loser_id, ts) VALUES (?, ?, ?, ?)",
                      (u["id"], body.winner_id, body.loser_id, time.time()))
     return {"delta": round(delta, 1)}
+
+
+# ---------- name info (Gemini, fetched only on request, cached forever) ----------
+
+INFO_PROMPT = """You are an expert in the etymology of first names, helping expecting parents.
+Describe the {sex} first name "{name}", as used in: {countries}.
+Use web search to check the origin and meaning. If sources disagree, or the name is a modern
+coinage with no established meaning, say so. Never invent a meaning.
+Reply with ONLY a JSON object, no markdown fences, with these keys:
+{{"origin": "language/culture of origin and the path it took, e.g. 'Hebrew, via Greek and Latin Matthaeus'",
+ "meaning": "literal meaning, e.g. 'gift of God'",
+ "pronunciation": "simple pronunciation guide, noting differences between the listed countries",
+ "variants": ["forms of the name in other languages"],
+ "namesakes": ["up to 3 well-known people with this first name"],
+ "note": "one or two sentences of interesting context (history, saints, popularity trend)",
+ "confidence": "high, medium or low"}}"""
+
+_info_locks = collections.defaultdict(threading.Lock)
+
+
+def gemini_generate(prompt, search=True):
+    body = {"contents": [{"parts": [{"text": prompt}]}]}
+    if search:
+        body["tools"] = [{"google_search": {}}]
+    req = urllib.request.Request(
+        f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent",
+        data=json.dumps(body).encode(), method="POST",
+        headers={"Content-Type": "application/json", "x-goog-api-key": GEMINI_KEY},
+    )
+    with urllib.request.urlopen(req, timeout=60) as res:
+        return json.loads(res.read())
+
+
+def fetch_info(name):
+    countries = ", ".join(COUNTRIES[c] for c in sorted(name["countries"], key=lambda c: name["countries"][c]["rank"]))
+    prompt = INFO_PROMPT.format(sex="boy's" if name["sex"] == "m" else "girl's", name=name["name"], countries=countries)
+    try:
+        data, searched = gemini_generate(prompt), True
+    except urllib.error.HTTPError as e:
+        if e.code != 400:
+            raise
+        data, searched = gemini_generate(prompt, search=False), False  # model without search tool support
+    cand = data["candidates"][0]
+    text = "".join(p.get("text", "") for p in cand.get("content", {}).get("parts", []))
+    info = json.loads(text[text.index("{") : text.rindex("}") + 1])
+    chunks = cand.get("groundingMetadata", {}).get("groundingChunks", [])
+    info["sources"] = [c["web"]["title"] for c in chunks if c.get("web", {}).get("title")][:5]
+    info["searched"] = searched
+    return info
+
+
+@app.get("/api/info/{name_id}")
+def name_info(name_id: int, user: str | None = Cookie(None)):
+    if name_id not in NAMES:
+        raise HTTPException(404, "unknown name")
+    with db() as conn:
+        current_user(conn, user)
+    # One Gemini call per name, even if both of you tap at the same moment
+    with _info_locks[name_id]:
+        with db() as conn:
+            row = conn.execute("SELECT info FROM name_info WHERE name_id = ?", (name_id,)).fetchone()
+        if row:
+            return {"info": json.loads(row["info"]), "cached": True}
+        if not GEMINI_KEY:
+            raise HTTPException(503, "Name info is not set up yet (GEMINI_API_KEY missing on the server)")
+        try:
+            info = fetch_info(NAMES[name_id])
+        except urllib.error.HTTPError as e:
+            raise HTTPException(502, f"Gemini error {e.code}: {e.read().decode(errors='replace')[:200]}")
+        except (urllib.error.URLError, TimeoutError) as e:
+            raise HTTPException(502, f"Could not reach Gemini: {e}")
+        except (KeyError, IndexError, ValueError):
+            raise HTTPException(502, "Gemini returned an unexpected answer, try again")
+        with db() as conn:
+            conn.execute("INSERT OR REPLACE INTO name_info (name_id, info, model, created_at) VALUES (?, ?, ?, ?)",
+                         (name_id, json.dumps(info, ensure_ascii=False), GEMINI_MODEL, time.time()))
+    return {"info": info, "cached": False}
 
 
 # ---------- static ----------

@@ -36,6 +36,18 @@ The Netherlands is not included: there is no downloadable newborn-names file.
 
 Rebuild: `./data/fetch_raw.sh && .venv/bin/python data/build_names.py`, then `./deploy.sh`.
 
+## Name info (origin & meaning)
+
+The ⓘ button on a card (or tapping a name in Ranking/Matches) asks Gemini
+(`gemini-3.5-flash-lite`, with Google Search grounding when the model allows it) and caches
+the answer in the `name_info` table forever, so each name costs one call total. Nothing is
+fetched in the background. Needs `/etc/name-match.env` on the Pi:
+
+```
+GEMINI_API_KEY=...
+# GEMINI_MODEL=gemini-3.5-flash-lite   (optional override)
+```
+
 ## Deploy
 
 ```

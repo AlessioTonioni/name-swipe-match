@@ -148,6 +148,7 @@ function cardEl(n) {
   el.dataset.id = n.id;
   el.innerHTML = `
     <div class="stamp like">LIKE</div><div class="stamp nope">NOPE</div>
+    <button class="info-btn" title="Origin and meaning (i)">i</button>
     <div class="sex ${n.sex}">${sexLabel(n.sex)}</div>
     <div class="name">${esc(n.name)}</div>
     <div class="pop muted">${popLabel(n.best_rank)}</div>
@@ -222,6 +223,8 @@ $("#undo-btn").addEventListener("click", async () => {
 document.addEventListener("keydown", (e) => {
   if ($("#tab-swipe").classList.contains("hidden") || !$("#filters").classList.contains("hidden")) return;
   if (!$("#match-overlay").classList.contains("hidden") || e.target.tagName === "INPUT") return;
+  if (!$("#info-overlay").classList.contains("hidden") || !$("#reset-overlay").classList.contains("hidden")) return;
+  if (e.key === "i" && queue.length) showInfo(queue[0]);
   if (e.key === "ArrowRight") decide(true);
   if (e.key === "ArrowLeft") decide(false);
   if (e.key === "Backspace") $("#undo-btn").click();
@@ -231,6 +234,8 @@ function attachDrag(el) {
   let startX = 0, startY = 0, dx = 0, dragging = false;
   const likeStamp = el.querySelector(".stamp.like");
   const nopeStamp = el.querySelector(".stamp.nope");
+  el.querySelector(".info-btn").addEventListener("pointerdown", (e) => e.stopPropagation());
+  el.querySelector(".info-btn").addEventListener("click", () => showInfo(queue[0]));
   el.addEventListener("pointerdown", (e) => {
     dragging = true; startX = e.clientX; startY = e.clientY; dx = 0;
     el.setPointerCapture(e.pointerId);
@@ -369,7 +374,7 @@ async function loadRanking() {
     const { likes } = await api("/api/likes");
     list.innerHTML = likes.length ? likes.map((n, i) => `
       <li><span class="pos">${i + 1}</span>
-        <span class="nm">${esc(n.name)}<small>${sexLabel(n.sex)} · ${duels(n.games)}${n.matched_with.length ? " · 💞 " + esc(n.matched_with.join(", ")) : ""}</small></span>
+        <span class="nm tappable" data-info="${n.id}">${esc(n.name)}<small>${sexLabel(n.sex)} · ${duels(n.games)}${n.matched_with.length ? " · 💞 " + esc(n.matched_with.join(", ")) : ""}</small></span>
         <span class="elo">${n.elo}</span>
         <button class="x" data-id="${n.id}" title="Remove from likes">✕</button></li>`).join("")
       : `<div class="list-empty">No liked names yet. Swipe right on some!</div>`;
@@ -382,7 +387,7 @@ async function loadRanking() {
     updateBadge(0);
     list.innerHTML = matches.length ? matches.map((m, i) => `
       <li><span class="pos">${i + 1}</span>
-        <span class="nm">${esc(m.name)}<small>you ${m.my_elo} · ${esc(m.with)} ${m.their_elo}</small></span>
+        <span class="nm tappable" data-info="${m.id}">${esc(m.name)}<small>you ${m.my_elo} · ${esc(m.with)} ${m.their_elo}</small></span>
         <span class="elo">${m.joint_elo}</span></li>`).join("")
       : `<div class="list-empty">No shared names yet. When you both like a name, it is ranked here by your average Elo.</div>`;
   }
@@ -395,10 +400,54 @@ async function loadMatches() {
   matches.sort((a, b) => b.ts - a.ts);
   $("#matches").innerHTML = matches.length ? matches.map((m) => `
     <li class="${m.new ? "new" : ""}"><span>💞</span>
-      <span class="nm">${esc(m.name)}<small>You and ${esc(m.with)} both like it · ${new Date(m.ts * 1000).toLocaleDateString()}</small></span>
+      <span class="nm tappable" data-info="${m.id}">${esc(m.name)}<small>You and ${esc(m.with)} both like it · ${new Date(m.ts * 1000).toLocaleDateString()}</small></span>
       <span class="flags">${flagsHtml(m.countries, null, 2)}</span></li>`).join("")
     : `<div class="list-empty">No matches yet. Keep swiping!</div>`;
 }
+
+// ---------- name info (fetched only when asked) ----------
+const infoCache = {};
+
+function infoRow(label, value, cls = "") {
+  if (!value || (Array.isArray(value) && !value.length)) return "";
+  const v = Array.isArray(value) ? value.map(esc).join(", ") : esc(value);
+  return `<div class="info-row"><div class="k">${label}</div><div class="v ${cls}">${v}</div></div>`;
+}
+
+async function showInfo(n) {
+  if (!n) return;
+  $("#info-name").textContent = n.name;
+  $("#info-foot").textContent = "";
+  $("#info-overlay").classList.remove("hidden");
+  if (!infoCache[n.id]) {
+    $("#info-body").innerHTML = `<div class="spinner"></div><p class="muted center small">Looking up ${esc(n.name)}…</p>`;
+  }
+  try {
+    const data = infoCache[n.id] || await api(`/api/info/${n.id}`);
+    infoCache[n.id] = data;
+    if ($("#info-name").textContent !== n.name) return;  // closed or switched meanwhile
+    const i = data.info;
+    $("#info-body").innerHTML =
+      infoRow("Meaning", i.meaning, "info-meaning") +
+      infoRow("Origin", i.origin) +
+      infoRow("Pronunciation", i.pronunciation) +
+      infoRow("Variants", i.variants) +
+      infoRow("Famous namesakes", i.namesakes) +
+      infoRow("Good to know", i.note);
+    const conf = i.confidence && i.confidence !== "high" ? `${i.confidence} confidence · ` : "";
+    const src = i.sources && i.sources.length ? `Sources: ${i.sources.join(", ")}` : (i.searched ? "" : "No web search used");
+    $("#info-foot").textContent = conf + src;
+  } catch (err) {
+    $("#info-body").innerHTML = `<p class="error">${esc(err.message)}</p>`;
+  }
+}
+
+$("#info-close").addEventListener("click", () => { $("#info-overlay").classList.add("hidden"); $("#info-name").textContent = ""; });
+$("#info-overlay").addEventListener("click", (e) => { if (e.target.id === "info-overlay") $("#info-close").click(); });
+document.addEventListener("click", (e) => {
+  const id = e.target.closest("[data-info]")?.dataset.info;
+  if (id) showInfo({ id: +id, name: e.target.closest("[data-info]").firstChild.textContent });
+});
 
 // ---------- boot ----------
 start().catch(() => showLogin());

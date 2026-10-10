@@ -187,3 +187,18 @@ nav.tabs button.active span { filter: none; opacity: 1; }
   color: var(--bg); padding: 10px 16px; border-radius: 12px; font-size: 14px; z-index: 30;
 }
 .primary.danger { background: #d93a3a; }
+.info-btn {
+  position: absolute; top: 14px; right: 14px; width: 34px; height: 34px; border-radius: 50%;
+  border: 1px solid var(--line); color: var(--muted); font: italic 700 17px Georgia, serif;
+  display: grid; place-items: center; background: var(--bg);
+}
+.list .nm.tappable { cursor: pointer; }
+.info-row { margin: 12px 0; }
+.info-row .k { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.info-row .v { margin-top: 2px; }
+.info-meaning { font-family: Georgia, serif; font-size: 22px; font-style: italic; }
+.spinner {
+  width: 28px; height: 28px; border: 3px solid var(--line); border-top-color: var(--accent);
+  border-radius: 50%; animation: spin .8s linear infinite; margin: 24px auto 8px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
