@@ -278,8 +278,8 @@ def likes(user: str | None = Cookie(None)):
 def unlike(name_id: int, user: str | None = Cookie(None)):
     with db() as conn:
         u = current_user(conn, user)
-        conn.execute("UPDATE swipes SET liked = 0, ts = ? WHERE user_id = ? AND name_id = ?",
-                     (time.time(), u["id"], name_id))
+        # ts untouched so undo keeps targeting the last swipe, not this edit
+        conn.execute("UPDATE swipes SET liked = 0 WHERE user_id = ? AND name_id = ?", (u["id"], name_id))
     return {"ok": True}
 
 
