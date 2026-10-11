@@ -351,8 +351,7 @@ async function loadDuel() {
   }
   const [a, b] = data.pair;
   const tile = (n) => `<button class="duel-card" data-id="${n.id}">
-      <div class="name">${esc(n.name)}</div>
-      <div class="meta muted small">${sexLabel(n.sex)} · Elo ${n.elo} · ${duels(n.games)}</div></button>`;
+      <div class="name">${esc(n.name)}</div></button>`;  // no Elo or stats here: they would bias the pick
   box.innerHTML = tile(a) + `<div class="vs">VS</div>` + tile(b);
   $("#duel-info").textContent = `Ranking ${data.liked} liked names. Tap your favourite.`;
   box.querySelectorAll(".duel-card").forEach((el) => el.addEventListener("click", async () => {
