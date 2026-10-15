@@ -33,7 +33,7 @@ if [ "${1}" = "--setup" ]; then
   # Secrets (GEMINI_API_KEY=...) go in /etc/name-match.env on the server
   ssh "$HOST" "sudo tee /etc/systemd/system/name-match.service >/dev/null" <<EOF
 [Unit]
-Description=Name Match
+Description=Name Swipe Match
 After=network.target
 
 [Service]

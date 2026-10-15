@@ -1,4 +1,4 @@
-"""Name Match: swipe on baby names, match with your partner, rank favourites by Elo."""
+"""Name Swipe Match: swipe on baby names, match with your partner, rank favourites by Elo."""
 import collections
 import json
 import os
@@ -123,7 +123,7 @@ def search_key(text):
 
 SEARCH_KEYS = {i: search_key(n["name"]) for i, n in NAMES.items()}
 
-app = FastAPI(title="Name Match")
+app = FastAPI(title="Name Swipe Match")
 
 
 # ---------- helpers ----------

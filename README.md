@@ -1,4 +1,4 @@
-# Name Match
+# Name Swipe Match
 
 Swipe-to-match for baby names. Log in with a username (no password), swipe
 right/left on names, get "It's a match!" when your partner liked the same name, and run
