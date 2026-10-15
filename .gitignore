@@ -6,3 +6,11 @@ __pycache__/
 *.db-shm
 data/raw/
 .DS_Store
+
+# Personal deploy config (see deploy.example.sh)
+deploy.sh
+setup.sh
+backup-db.sh
+name-match.service
+.last_backup
+backup.log
